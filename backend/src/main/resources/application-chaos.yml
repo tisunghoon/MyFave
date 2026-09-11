@@ -1,0 +1,101 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/myfave
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    hikari:
+      maximum-pool-size: 10        # 원본 장애 풀 크기 재현 — 동시 결제 10건에 풀 전멸 관측용
+      connection-timeout: 30000
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        default_batch_fetch_size: 100
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: chaos@example.com
+    password: chaos-password
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+
+  # 카카오 소셜 로그인 더미
+  security:
+    oauth2:
+      client:
+        registration:
+          kakao:
+            client-id: chaos-kakao-client-id
+            client-secret: chaos-kakao-client-secret
+            redirect-uri: http://localhost:8080/login/oauth2/code/kakao
+            authorization-grant-type: authorization_code
+            scope: profile_nickname, account_email
+        provider:
+          kakao:
+            authorization-uri: https://kauth.kakao.com/oauth/authorize
+            token-uri: https://kauth.kakao.com/oauth/token
+            user-info-uri: https://kapi.kakao.com/v2/user/me
+            user-name-attribute: id
+
+server:
+  tomcat:
+    mbeanregistry:
+      enabled: true              # Grafana Tomcat Threads 패널 메트릭 수집
+    threads:
+      max: 20                    # 스레드 풀 의도적 축소 — 결제 경로가 스레드를 다 먹는 cascade 빠르게 관측
+      min-spare: 4
+
+# JWT
+jwt:
+  secret: ${JWT_SECRET:chaos-dev-secret-key-minimum-32-characters-long}
+  access-token-expiration: 3600000
+  refresh-token-expiration: 604800000
+
+# 카오스 주입 설정 기본값 (ChaosProperties 바인딩)
+chaos:
+  pg:
+    enabled: false               # 기본 비활성 — POST /internal/chaos/pg 로 런타임 토글
+    latency-ms: 8000             # 기본 지연 8초 (원본 장애 재현값)
+    mode: slow200                # slow200 = 지연 후 정상 응답 / error = 예외 발생
+
+# PortOne 더미 (실 결제 안 나감)
+portone:
+  api-url: https://api.portone.io
+  api-secret: chaos-portone-secret
+
+# Tracker 더미
+tracker:
+  client-id: chaos-tracker-id
+  client-secret: chaos-tracker-secret
+
+# AWS S3 더미
+spring.cloud.aws:
+  credentials:
+    access-key: chaos-access-key
+    secret-key: chaos-secret-key
+  region:
+    static: ap-northeast-2
+  s3:
+    bucket: chaos-bucket
+
+# OTel (로컬 모니터링 스택 연결)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics,chaospg
+  metrics:
+    export:
+      prometheus:
+        enabled: true
